@@ -1,0 +1,56 @@
+package se.sics.kompics.p2p.simulator.launch;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+import se.sics.kompics.address.Address;
+import se.sics.kompics.network.NetworkConfiguration;
+import se.sics.kompics.network.Transport;
+import se.sics.kompics.p2p.bootstrap.BootstrapConfiguration;
+import se.sics.kompics.p2p.fd.ping.PingFailureDetectorConfiguration;
+import se.sics.kompics.p2p.peer.PeerConfiguration;
+
+public class Configuration {
+	//public static int Log2Ring = 13;
+	public static int Log2Ring = p2p.simulator.scenarios.Scenario1.NUMBER_OF_BITS; 
+	public InetAddress ip = null;
+	{
+		try {
+			ip = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+		}
+	}
+	
+	int networkPort = 8081;
+	int webPort = 8080;
+	int bootId = Integer.MAX_VALUE;
+
+	Address bootServerAddress = new Address(ip, networkPort, bootId);
+	Address peer0Address = new Address(ip, networkPort, 0);
+
+	BootstrapConfiguration bootConfiguration = new BootstrapConfiguration(bootServerAddress, 60000, 4000, 3, 30000, webPort, webPort);
+	PingFailureDetectorConfiguration fdConfiguration = new PingFailureDetectorConfiguration(10000, 50000, 5000, 1000, Transport.TCP);
+	NetworkConfiguration networkConfiguration = new NetworkConfiguration(ip, networkPort, 0);
+	PeerConfiguration peerConfiguration = new PeerConfiguration(1, 1000);
+
+//-------------------------------------------------------------------	
+	public void set() throws IOException {
+		String c = File.createTempFile("bootstrap.", ".conf").getAbsolutePath();
+		bootConfiguration.store(c);
+		System.setProperty("bootstrap.configuration", c);
+
+		c = File.createTempFile("ping.fd.", ".conf").getAbsolutePath();
+		fdConfiguration.store(c);
+		System.setProperty("ping.fd.configuration", c);
+		
+		c = File.createTempFile("network.", ".conf").getAbsolutePath();
+		networkConfiguration.store(c);
+		System.setProperty("network.configuration", c);
+
+		c = File.createTempFile("ms.", ".conf").getAbsolutePath();
+		peerConfiguration.store(c);
+		System.setProperty("ms.configuration", c);
+	}
+}
