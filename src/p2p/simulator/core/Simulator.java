@@ -32,7 +32,6 @@ import p2p.system.peer.PeerAddress;
 import p2p.system.peer.PeerConfiguration;
 import p2p.system.peer.PeerInit;
 import p2p.system.peer.PeerPort;
-import p2p.system.peer.Server;
 import p2p.system.peer.event.JoinPeer;
 import p2p.system.peer.event.PublishPeer;
 import p2p.system.peer.event.StartServer;
@@ -99,7 +98,6 @@ public final class Simulator extends ComponentDefinition {
 		subscribe(handlePeerJoin, simulator);
 		subscribe(handleAllPeerJoin, simulator);
 		subscribe(handlePeerFail, simulator);
-		subscribe(handleServerStart, simulator);
 		subscribe(handlePeerSubscribe, simulator);
 		subscribe(handlePeerUnsubscribe, simulator);
 		subscribe(handlePeerPublish, simulator);
@@ -173,24 +171,6 @@ public final class Simulator extends ComponentDefinition {
 	};
 
 	
-	//-------------------------------------------------------------------	
-	Handler<ServerStart> handleServerStart = new Handler<ServerStart>() {
-		public void handle(ServerStart event) {
-			BigInteger id = event.getPeerId();
-			
-			// join with the next id if this id is taken
-			BigInteger successor = view.getNode(id);
-			while (successor != null && successor.equals(id)) {
-				id = id.add(BigInteger.ONE).mod(idSpaceSize);
-				successor = view.getNode(id);
-			}
-
-			Component server = createAndStartNewServer(id);
-			//view.addNode(id);
-
-			trigger(new StartServer(id), server.getPositive(PeerPort.class));
-		}
-	};
 //-------------------------------------------------------------------	
 	Handler<PeerFail> handlePeerFail = new Handler<PeerFail>() {
 		public void handle(PeerFail event) {
@@ -524,28 +504,6 @@ public final class Simulator extends ComponentDefinition {
 
 		destroy(peer);
 	}
-	
-	//-------------------------------------------------------------------	
-	private final Component createAndStartNewServer(BigInteger id) {
-		Component tmpServer = create(Server.class);
-		int peerId = ++peerIdSequence;
-		Address serverAddress = new Address(peer0Address.getIp(), peer0Address.getPort(), peerId);
-
-		PeerAddress tmpServerPeerAddress = new PeerAddress(serverAddress, id);
-		
-		connect(network, tmpServer.getNegative(Network.class), new MessageDestinationFilter(serverAddress));
-		connect(timer, tmpServer.getNegative(Timer.class));
-
-		trigger(new PeerInit(tmpServerPeerAddress, tmpServerPeerAddress, peerConfiguration, bootstrapConfiguration, fdConfiguration), 
-				tmpServer.getControl());
-
-		trigger(new Start(), tmpServer.getControl());
-		server = tmpServer;
-		serverPeerAddress = tmpServerPeerAddress;
-		
-		return tmpServer;
-	}
-
 
 //-------------------------------------------------------------------	
 	private final static class MessageDestinationFilter extends ChannelFilter<Message, Address> {
