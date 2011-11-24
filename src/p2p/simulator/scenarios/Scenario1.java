@@ -1,5 +1,6 @@
 package p2p.simulator.scenarios;
 
+import java.io.FileInputStream;
 import java.math.BigInteger;
 import java.util.Properties;
 
@@ -24,7 +25,9 @@ public class Scenario1 extends Scenario {
 	private static SimulationScenario scenario = new SimulationScenario() {{
 		
 		try {
-			configFile.load(this.getClass().getClassLoader().getResourceAsStream("simulation.properties"));
+			//configFile.load(this.getClass().getClassLoader().getResourceAsStream("simulation.properties"));
+			configFile.load(new FileInputStream("config/simulation.properties"));
+			 
 		} catch (Exception e) {
 			System.err.println("Error: couldn't load the properties file in Scenario1.java");
 		}
