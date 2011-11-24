@@ -1,6 +1,8 @@
 package p2p.system.peer;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,7 +68,7 @@ public final class Peer extends ComponentDefinition {
 
 	public static BigInteger RING_SIZE = new BigInteger(2 + "")
 			.pow(Configuration.Log2Ring);
-	public static int FINGER_SIZE = Configuration.Log2Ring;
+	public static int LONGLINK_SIZE = Scenario1.NUMBER_OF_LONGLINKS;
 	public static int SUCC_SIZE = Configuration.Log2Ring; // WOW! a peer has
 															// backup succ as
 															// much as the
@@ -76,14 +78,16 @@ public final class Peer extends ComponentDefinition {
 	private static int STABILIZING_PERIOD = 1000;
 	private PeerAddress pred;
 	private PeerAddress succ;
-	private PeerAddress[] fingers = new PeerAddress[FINGER_SIZE];
+	private PeerAddress[] longlinks = new PeerAddress[LONGLINK_SIZE];
 	private PeerAddress[] succList = new PeerAddress[SUCC_SIZE];
 	int count = 0;
 
-	private int fingerIndex = 0;
+	private int longlinkIndex = 0;
 	private int joinCounter = 0;
 	private int replicateCounter = 0;
 	private boolean started = false;
+	
+	private int networkSize;
 
 	// ======================
 
@@ -121,6 +125,8 @@ public final class Peer extends ComponentDefinition {
 																	// (your
 	private HashMap<BigInteger, Set<Address>> predForwardingTable;
 	private BigInteger publicationSeqNum;
+	
+	private LongLink longlinkhelper;
 
 	// -------------------------------------------------------------------
 	public Peer() {
@@ -129,8 +135,8 @@ public final class Peer extends ComponentDefinition {
 		for (int i = 0; i < SUCC_SIZE; i++)
 			this.succList[i] = null;
 
-		for (int i = 0; i < FINGER_SIZE; i++)
-			this.fingers[i] = null;
+		for (int i = 0; i < LONGLINK_SIZE; i++)
+			this.longlinks[i] = null;
 
 		// =========================
 		fdRequests = new HashMap<Address, UUID>();
@@ -145,6 +151,8 @@ public final class Peer extends ComponentDefinition {
 		bootstrap = create(BootstrapClient.class);
 
 		publicationSeqNum = BigInteger.ONE;
+		
+		
 
 		connect(network, fd.getNegative(Network.class));
 		connect(network, bootstrap.getNegative(Network.class));
@@ -182,8 +190,6 @@ public final class Peer extends ComponentDefinition {
 		subscribe(handleWhoIsPredReply, network);
 		subscribe(handleNotify, network);
 
-		// =================
-		// subscribe(messageHandler, network);
 	}
 
 	// -------------------------------------------------------------------
@@ -202,6 +208,10 @@ public final class Peer extends ComponentDefinition {
 			msgPeriod = init.getMSConfiguration().getSnapshotPeriod();
 
 			viewSize = init.getMSConfiguration().getViewSize();
+			
+			networkSize = init.getNetworkSize();
+				
+			longlinkhelper = new LongLink(myPeerAddress, LONGLINK_SIZE, (int) RING_SIZE.longValue(), networkSize);
 
 			trigger(new BootstrapClientInit(myAddress,
 					init.getBootstrapConfiguration()), bootstrap.getControl());
@@ -271,9 +281,12 @@ public final class Peer extends ComponentDefinition {
 				if (somePeers.size() == 0) {
 					pred = null;
 					succ = myPeerAddress;
+					
 					succList[0] = succ;
 					Snapshot.setPred(myPeerAddress, pred);
 					Snapshot.setSucc(myPeerAddress, succ);
+					longlinkhelper.updatePreSucc(pred, succ);
+					
 					joinCounter = -1;
 					trigger(new BootstrapCompleted("chord", myPeerAddress),
 							bootstrap.getPositive(P2pBootstrap.class));
@@ -327,22 +340,46 @@ public final class Peer extends ComponentDefinition {
 	Handler<FindSuccReply> handleFindSuccReply = new Handler<FindSuccReply>() {
 		public void handle(FindSuccReply event) {
 			PeerAddress responsible = event.getResponsible();
-			int fingerIndex = event.getFingerIndex();
+			int longlinkIndex = event.getFingerIndex();
 
-			if (fingerIndex == 0) {
+			if (longlinkIndex == 0) {
 				succ = new PeerAddress(responsible);
 				succList[0] = new PeerAddress(responsible);
 				Snapshot.setSucc(myPeerAddress, succ);
+				longlinkhelper.updatePreSucc(pred, succ);
 				trigger(new BootstrapCompleted("chord", myPeerAddress),
 						bootstrap.getPositive(P2pBootstrap.class));
 				fdRegister(succ);
 				joinCounter = -1;
 			}
 
-			fingers[fingerIndex] = new PeerAddress(responsible);
-			Snapshot.setFingers(myPeerAddress, fingers);
+			//longlinks[longlinkIndex] = new PeerAddress(responsible);
+			addLongLink(responsible, longlinkIndex);
+			Snapshot.setLonglinks(myPeerAddress, new HashSet<PeerAddress>(Arrays.asList(longlinks)));
 		}
 	};
+	
+	private void addLongLink(PeerAddress peer, int index) {
+		if (index == 0)
+			longlinks[index] = new PeerAddress(peer);
+		
+		else {
+			// check if peer exists
+			boolean exists = false;
+			for (int i = 0; i < longlinks.length; i++) {
+				if (longlinks[i] != null && longlinks[i].equals(peer)) {
+					exists = true;
+					break;
+				}
+			}
+			
+			if (exists)
+				return;
+			else
+				longlinks[index] = new PeerAddress(peer);
+		}
+			
+	}
 
 	// -------------------------------------------------------------------
 	Handler<PeriodicStabilization> handlePeriodicStabilization = new Handler<PeriodicStabilization>() {
@@ -365,43 +402,56 @@ public final class Peer extends ComponentDefinition {
 			if (succ != null)
 				trigger(new WhoIsPred(myPeerAddress, succ), network);
 
-			// fix fingers
 			if (succ == null)
 				return;
 
-			fingerIndex++;
-			if (fingerIndex == FINGER_SIZE)
-				fingerIndex = 1;
+			// fix one longlink at a time
+			
+			longlinkIndex++;
+			if (longlinkIndex == LONGLINK_SIZE)
+				longlinkIndex = 1;
+			
+			// for debugging purpose only, fix the longlinks
+			if (longlinks[longlinkIndex] != null) {
+				/*
+				System.out.println("Peer " + myPeerAddress.getPeerId() + ", longlinks: " + Arrays.toString(longlinks) 
+						+ ", pred: " + pred + ", succ: " + succ);
+				*/
+				return;
+			}
 
-			BigInteger index = new BigInteger(2 + "").pow(fingerIndex);
+			/*
+			BigInteger index = new BigInteger(2 + "").pow(longlinkIndex);
 			BigInteger id = myPeerAddress.getPeerId().add(index).mod(RING_SIZE);
-
+			*/
+			int index = longlinkhelper.obtainNewLongLinkID();
+			if (index != -1) {
+				BigInteger id = BigInteger.valueOf(index);
+				
+				PeerAddress nextPeer = closestPrecedingNode(id);
+				trigger(new FindSucc(myPeerAddress, nextPeer, myPeerAddress,
+						id, longlinkIndex), network);
+			}
+			
+			
+			/*
 			if (RingKey.belongsTo(id, myPeerAddress.getPeerId(),
 					succ.getPeerId(), RingKey.IntervalBounds.OPEN_CLOSED,
 					RING_SIZE))
-				fingers[fingerIndex] = new PeerAddress(succ);
+				longlinks[longlinkIndex] = new PeerAddress(succ);
 			else {
 				PeerAddress nextPeer = closestPrecedingNode(id);
 				trigger(new FindSucc(myPeerAddress, nextPeer, myPeerAddress,
-						id, fingerIndex), network);
-			}
-
-			// Send updated forwardingTable to succ periodically
-			/*
-			if (replicateCounter++ > WAIT_TIME_TO_REPLICATE) {
-				replicateCounter = 0;
-				ForwardingTable table = new ForwardingTable(
-						getForwardingTable(), myAddress, succ.getPeerAddress());
-				trigger(table, network);
+						id, longlinkIndex), network);
 			}
 			*/
 			
 			/*
-			 * System.out.print("Fingers for peer " + myAddress.getId() + ": ");
-			 * for (int i = 0; i < fingers.length; i++) if (fingers[i] != null)
-			 * System.out.print(fingers[i].getPeerId() + " ");
-			 * System.out.println();
-			 */
+			System.out.println("Peer " + myPeerAddress.getPeerId() + ", longlinks: " + Arrays.toString(longlinks) 
+					+ ", pred: " + pred + ", succ: " + succ);
+					*/
+			
+
 		}
 	};
 
@@ -428,10 +478,11 @@ public final class Peer extends ComponentDefinition {
 						myPeerAddress.getPeerId(), succ.getPeerId(),
 						RingKey.IntervalBounds.OPEN_OPEN, RING_SIZE)) {
 					succ = new PeerAddress(succPred);
-					fingers[0] = succ;
+					longlinks[0] = succ;
 					succList[0] = succ;
 					Snapshot.setSucc(myPeerAddress, succ);
-					Snapshot.setFingers(myPeerAddress, fingers);
+					longlinkhelper.updatePreSucc(pred, succ);
+					Snapshot.setLonglinks(myPeerAddress, new HashSet<PeerAddress>(Arrays.asList(longlinks)));
 					fdRegister(succ);
 					joinCounter = -1;
 				}
@@ -461,6 +512,7 @@ public final class Peer extends ComponentDefinition {
 				pred = new PeerAddress(newPred);
 				fdRegister(pred);
 				Snapshot.setPred(myPeerAddress, newPred);
+				longlinkhelper.updatePreSucc(pred, succ);
 			}
 		}
 	};
@@ -549,7 +601,7 @@ public final class Peer extends ComponentDefinition {
 								&& !succList[i].equals(myPeerAddress)
 								&& !succList[i].equals(suspectedPeer)) {
 							succ = succList[i];
-							fingers[0] = succ;
+							longlinks[0] = succ;
 							fdRegister(succ);
 							// Handling replication
 							// When successor changes, send my own forwarding
@@ -568,7 +620,8 @@ public final class Peer extends ComponentDefinition {
 					joinCounter = 0;
 
 					Snapshot.setSucc(myPeerAddress, succ);
-					Snapshot.setFingers(myPeerAddress, fingers);
+					longlinkhelper.updatePreSucc(pred, succ);
+					Snapshot.setLonglinks(myPeerAddress, new HashSet<PeerAddress>(Arrays.asList(longlinks)));
 
 					for (; i > 0; i--)
 						succList = leftshift(succList);
@@ -606,15 +659,27 @@ public final class Peer extends ComponentDefinition {
 
 	// -------------------------------------------------------------------
 	private PeerAddress closestPrecedingNode(BigInteger id) {
-		for (int i = FINGER_SIZE - 1; i >= 0; i--) {
-			if (fingers[i] != null
-					&& RingKey.belongsTo(fingers[i].getPeerId(),
+		BigInteger newDistance, closestDistanceSoFar;
+		PeerAddress closestPeer = null;
+		
+		closestDistanceSoFar = RING_SIZE;
+		for (int i = LONGLINK_SIZE - 1; i >= 0; i--) {
+			if (longlinks[i] != null
+					&& RingKey.belongsTo(longlinks[i].getPeerId(),
 							myPeerAddress.getPeerId(), id,
-							RingKey.IntervalBounds.OPEN_OPEN, RING_SIZE))
-				return fingers[i];
+							RingKey.IntervalBounds.OPEN_OPEN, RING_SIZE)) {
+				newDistance = distance(longlinks[i].getPeerId(), id);
+				if (newDistance.compareTo(closestDistanceSoFar) == -1) {
+					closestDistanceSoFar = newDistance;
+					closestPeer = longlinks[i];
+				}
+			}
 		}
 
-		return myPeerAddress;
+		if (closestPeer == null) 
+			return myPeerAddress;
+		else 
+			return closestPeer;
 	}
 
 	// -------------------------------------------------------------------
@@ -783,8 +848,7 @@ public final class Peer extends ComponentDefinition {
 
 	// Helper methods
 
-	private boolean between(BigInteger destID, BigInteger predID,
-			BigInteger myID) {
+	private boolean between(BigInteger destID, BigInteger predID, BigInteger myID) {
 		if (destID.equals(myID))
 			return true;
 
@@ -810,6 +874,23 @@ public final class Peer extends ComponentDefinition {
 		return result.mod(RING_SIZE);
 
 	}
+	
+	private BigInteger distance(BigInteger from, BigInteger to) {
+		// peerID < topic =: finger ------ dest
+		BigInteger distance;
+		if (from.compareTo(to) == -1
+				|| from.compareTo(to) == 0) {
+			distance = to.subtract(from);
+		}
+		// peerID > topic =: finger --- max --- dest
+		else {
+			// newDistance =
+			distance = RING_SIZE.subtract(from);
+			distance = distance.add(to);// destination.subtract(nextHopID).add(RING_SIZE);
+		}
+		
+		return distance;
+	}
 
 	private void routeMessage(Message msg, BigInteger destination) {
 		BigInteger oldDistance = RING_SIZE;
@@ -824,14 +905,16 @@ public final class Peer extends ComponentDefinition {
 				&& between(destination, pred.getPeerId(),
 						myPeerAddress.getPeerId())) {
 			// I am the rendezvous node
-			System.out.println("***");// Peer " + myPeerAddress.getPeerId() + "
-										// is the rendezvous node for " +
-										// destination);
+			System.out.println("*** Peer " + myPeerAddress.getPeerId() + 
+										" is the rendezvous node for " +
+										destination);
+			return;
 		} else if (succ != null
 				&& between(destination, myPeerAddress.getPeerId(),
 						succ.getPeerId())) {
 			// The rendezvous node is the successor
 			address = succ.getPeerAddress();
+			nextPeer = succ.getPeerId();
 		} else {
 			// I am not the rendezvous node, route the message to the rendezvous
 			// node
@@ -873,19 +956,19 @@ public final class Peer extends ComponentDefinition {
 			}
 
 			// then, check in the fingers list
-			for (int i = 0; i < fingers.length; i++) {
+			for (int i = 0; i < longlinks.length; i++) {
 
 				if (newDistance.equals(BigInteger.ZERO))
 					break;
 
-				if (fingers[i] != null) {
+				if (longlinks[i] != null) {
 
 					// System.out.println("fingers: " + fingers[i].getPeerId() +
 					// " destination: " + destination
 					// + " oldDistance " + oldDistance);
 
 					// peerID < topic =: finger ------ dest
-					nextHopID = fingers[i].getPeerId();
+					nextHopID = longlinks[i].getPeerId();
 					if (nextHopID.compareTo(destination) == -1
 							|| nextHopID.compareTo(destination) == 0) {
 						newDistance = destination.subtract(nextHopID);
@@ -907,22 +990,28 @@ public final class Peer extends ComponentDefinition {
 					// System.out.println("newDistance: " + newDistance +
 					// ", oldDistance:" + oldDistance);
 					oldDistance = newDistance;
-					address = fingers[i].getPeerAddress();
-					nextPeer = fingers[i].getPeerId();
+					address = longlinks[i].getPeerAddress();
+					nextPeer = longlinks[i].getPeerId();
 				}
 			}
 		}
 		// System.out.println("oldDistance:" + oldDistance);
 
 		if (address != null) {
-			System.out.println("Peer " + myPeerAddress.getPeerId()
-					+ " routed a message on id " + nextPeer + " " + address);
+			if (myPeerAddress.getPeerId().equals(BigInteger.ZERO)) 
+				System.err.println("Peer " + myPeerAddress.getPeerId()
+						+ " routed a message on id " + nextPeer + " " + address);
+			
+			else 
+				System.out.println("Peer " + myPeerAddress.getPeerId()
+						+ " routed a message on id " + nextPeer + " " + address);
+			
 			msg.setDestination(address);
 			trigger(msg, network);
 		}
 
-		// else
-		// System.err.println("Message is dropped.");
+		else
+			System.err.println("Message is dropped.");
 
 	}
 

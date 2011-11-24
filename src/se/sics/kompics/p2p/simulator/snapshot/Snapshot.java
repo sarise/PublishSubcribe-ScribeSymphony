@@ -59,13 +59,13 @@ public class Snapshot {
 	}
 	
 //-------------------------------------------------------------------
-	public static void setFingers(PeerAddress address, PeerAddress[] fingers) {
+	public static void setLonglinks(PeerAddress address, Set<PeerAddress> longlinks) {
 		PeerInfo peerInfo = peers.get(address);
 		
 		if (peerInfo == null)
 			return;
 		
-		peerInfo.setFingers(fingers);
+		peerInfo.setLonglinks(longlinks);
 	}
 
 //-------------------------------------------------------------------
@@ -80,6 +80,7 @@ public class Snapshot {
 
 //-------------------------------------------------------------------
 	public static void report() {
+		/*
 		String str = new String();
 		str += "current time: " + counter++ + "\n";
 		str += reportNetworkState();
@@ -90,6 +91,7 @@ public class Snapshot {
 		
 		FileIO.append(str, FILENAME);
 		generateGraphVizReport();
+		*/
 	}
 
 //-------------------------------------------------------------------
@@ -105,8 +107,8 @@ public class Snapshot {
 		String str = new String();
 		str += "ring: " + verifyRing(peersList) + "\n";
 		str += "reverse ring: " + verifyReverseRing(peersList) + "\n";
-		str += "fingers: " + verifyFingers(peersList) + "\n";
-		str += "succList: " + verifySuccList(peersList) + "\n";
+		str += "longlink: " + verifyLonglinks(peersList) + "\n";
+		//str += "succList: " + verifySuccList(peersList) + "\n";
 		//str += details(peersList);
 		
 		str += "notifications: " + verifyNotifications(peersList) + "\n";
@@ -162,6 +164,26 @@ public class Snapshot {
 		return str;
 	}
 
+	private static String verifyLonglinks(PeerAddress[] peersList) {
+		int count = 0;
+		String str = new String();
+		
+		for (int i = 0; i < peersList.length; i++) {
+			PeerInfo peer = peers.get(peersList[i]);
+			
+			if (peer.getLonglinksSize() < Peer.LONGLINK_SIZE)
+				count++;
+		}
+		
+		if (count == 0)
+			str += "longlinks list is correct :)";
+		else
+			str += count + " peers have incomplete longlinks :(";
+		
+		return str;
+	}
+	
+	/*
 //-------------------------------------------------------------------
 	private static String verifyFingers(PeerAddress[] peersList) {
 		int count = 0;
@@ -172,7 +194,7 @@ public class Snapshot {
 		
 		for (int i = 0; i < peersList.length; i++) {
 			PeerInfo peer = peers.get(peersList[i]);
-			fingers = peer.getFingers();
+			fingers = peer.getLonglinks();
 			expectedFingers = getExpectedFingers(peer.getSelf(), peersList);
 			
 			for (int j = 0; j < Peer.FINGER_SIZE; j++) {
@@ -188,7 +210,7 @@ public class Snapshot {
 		
 		return str;
 	}
-
+*/
 //-------------------------------------------------------------------
 	private static String verifySuccList(PeerAddress[] peersList) {
 		int count = 0;
@@ -216,13 +238,14 @@ public class Snapshot {
 		return str;
 	}
 
+	/*
 //-------------------------------------------------------------------
 	private static PeerAddress[] getExpectedFingers(PeerAddress peer, PeerAddress[] peersList) {
 		BigInteger index;
 		BigInteger id;
-		PeerAddress[] expectedFingers = new PeerAddress[Peer.FINGER_SIZE];
+		PeerAddress[] expectedFingers = new PeerAddress[Peer.LONGLINK_SIZE];
 		
-		for (int i = 0; i < Peer.FINGER_SIZE; i++) {
+		for (int i = 0; i < Peer.LONGLINK_SIZE; i++) {
 			index = new BigInteger(2 + "").pow(i);			
 			id = peer.getPeerId().add(index).mod(Peer.RING_SIZE); 
 
@@ -239,11 +262,12 @@ public class Snapshot {
 		
 		return expectedFingers;
 	}
+	*/
 
 //-------------------------------------------------------------------
 	private static PeerAddress[] getExpectedSuccList(PeerAddress peer, PeerAddress[] peersList) {
 		int index = 0;
-		PeerAddress[] expectedSuccList = new PeerAddress[Peer.FINGER_SIZE];
+		PeerAddress[] expectedSuccList = new PeerAddress[Peer.LONGLINK_SIZE];
 		
 		for (int i = 0; i < peersList.length; i++) {
 			if (peersList[i].getPeerId().compareTo(peer.getPeerId()) == 1) {

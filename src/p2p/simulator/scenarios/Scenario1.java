@@ -16,6 +16,8 @@ public class Scenario1 extends Scenario {
 	public static String subscriptionsModel;
 	public static String publicationsModel;
 	
+	public static int NUMBER_OF_LONGLINKS;
+	
 	
 	public static Properties configFile = new Properties();
 	
@@ -37,6 +39,7 @@ public class Scenario1 extends Scenario {
 		
 		NUMBER_OF_BITS = Integer.parseInt(configFile.getProperty("NumberOfBits"));
 		
+		NUMBER_OF_LONGLINKS = Integer.parseInt(configFile.getProperty("NumberOfLonglinks"));
 		
 		StochasticProcess serverstart = new StochasticProcess() {{
 			eventInterArrivalTime(constant(100));

@@ -89,4 +89,9 @@ public final class PeerAddress extends OverlayAddress implements Comparable<Peer
 			return false;
 		return true;
 	}
+
+	public int compareByPeerIdTo(int that) {
+		// TODO Auto-generated method stub
+		return this.peerId.compareTo(BigInteger.valueOf(that));
+	}
 }

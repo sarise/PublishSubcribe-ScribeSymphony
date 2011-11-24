@@ -74,8 +74,8 @@ public final class Simulator extends ComponentDefinition {
 	private final HashMap<BigInteger, PeerAddress> peersAddress;
 	
 	
-	private Component server;
-	private PeerAddress serverPeerAddress;
+//	private Component server;
+//	private PeerAddress serverPeerAddress;
 	
 	private BootstrapConfiguration bootstrapConfiguration;
 	private PeerConfiguration peerConfiguration;	
@@ -430,7 +430,7 @@ public final class Simulator extends ComponentDefinition {
 		trigger(new PeerInit(msPeerAddress, serverPeerAddress, peerConfiguration, bootstrapConfiguration, fdConfiguration), 
 				peer.getControl());
 */
-		trigger(new PeerInit(msPeerAddress, null, peerConfiguration, bootstrapConfiguration, fdConfiguration), 
+		trigger(new PeerInit(msPeerAddress, null, peerConfiguration, bootstrapConfiguration, fdConfiguration, Scenario1.NUMBER_OF_PEERS), 
 				peer.getControl());
 
 		trigger(new Start(), peer.getControl());

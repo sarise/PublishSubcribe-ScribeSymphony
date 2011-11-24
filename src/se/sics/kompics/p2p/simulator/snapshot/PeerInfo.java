@@ -13,7 +13,7 @@ public class PeerInfo {
 	private PeerAddress self;	
 	private PeerAddress pred;
 	private PeerAddress succ;
-	private PeerAddress[] fingers = new PeerAddress[Peer.FINGER_SIZE];
+	private Set<PeerAddress> longlinks = new HashSet<PeerAddress>();
 	private PeerAddress[] succList = new PeerAddress[Peer.SUCC_SIZE];
 	
 	private Set<PeerAddress> mySubscribers = new HashSet<PeerAddress>();
@@ -37,9 +37,8 @@ public class PeerInfo {
 	}
 
 //-------------------------------------------------------------------
-	public void setFingers(PeerAddress[] fingers) {
-		for (int i = 0; i < fingers.length; i++)
-		this.fingers[i] = fingers[i];
+	public void setLonglinks(Set<PeerAddress> longlinks) {
+		this.longlinks = longlinks;
 	}
 
 //-------------------------------------------------------------------
@@ -64,8 +63,15 @@ public class PeerInfo {
 	}
 
 //-------------------------------------------------------------------
-	public PeerAddress[] getFingers() {
-		return this.fingers;
+	public PeerAddress[] getLonglinks() {
+		PeerAddress[] links = new PeerAddress[this.longlinks.size()];
+		this.longlinks.toArray(links);
+		return links;
+	}
+	
+//-------------------------------------------------------------------
+	public int getLonglinksSize() {
+		return this.longlinks.size();
 	}
 
 //-------------------------------------------------------------------
@@ -76,13 +82,16 @@ public class PeerInfo {
 //-------------------------------------------------------------------
 	public String toString() {
 		String str = new String();
-		String finger = new String();
+		String longlinks = new String();
 		String succs = new String();
 		
-		finger = "[";
-		for (int i = 0; i < Peer.FINGER_SIZE; i++)
-			finger += this.fingers[i] + ", ";
-		finger += "]";
+		/*
+		longlinks = "[";
+		for (int i = 0; i < Peer.LONGLINK_SIZE; i++)
+			longlinks += this.longlinks[i] + ", ";
+		longlinks += "]";
+		*/
+		longlinks = this.longlinks.toString();
 
 		succs = "[";
 		for (int i = 0; i < Peer.SUCC_SIZE; i++)
@@ -92,7 +101,7 @@ public class PeerInfo {
 		str += "peer: " + this.self;
 		str += ", succ: " + this.succ;
 		str += ", pred: " + this.pred;
-		str += ", fingers: " + finger;
+		str += ", longlinks: " + longlinks;
 		str += ", succList: " + succs;
 		
 		return str;
