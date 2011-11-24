@@ -41,7 +41,7 @@ public class Scenario1 extends Scenario {
 		
 		NUMBER_OF_LONGLINKS = Integer.parseInt(configFile.getProperty("NumberOfLonglinks"));
 		
-		StochasticProcess serverstart = new StochasticProcess() {{
+		StochasticProcess firstPeerStart = new StochasticProcess() {{
 			eventInterArrivalTime(constant(100));
 			//raise(1, Operations.serverStart, uniform(NUMBER_OF_BITS));
 			raise(1, Operations.peerJoin, uniform(NUMBER_OF_BITS));
@@ -66,10 +66,10 @@ public class Scenario1 extends Scenario {
 		else {
 			joining = new StochasticProcess() {{
 				eventInterArrivalTime(constant(100));
-				raise(NUMBER_OF_PEERS, Operations.peerJoin, uniform(NUMBER_OF_BITS));
+				raise(NUMBER_OF_PEERS - 1, Operations.peerJoin, uniform(NUMBER_OF_BITS));
 			}};
 		}
-
+///*
 // ---------------------------------------------------------------------
 		// Subscription
 		StochasticProcess subscribing = null;
@@ -107,18 +107,17 @@ public class Scenario1 extends Scenario {
 			raise(NUMBER_OF_UNSUBSCRIPTIONS, Operations.peerUnsubscribe, uniform(NUMBER_OF_BITS));
 		}};
 		
+		//*/
 // ---------------------------------------------------------------------
 		StochasticProcess termination = new StochasticProcess() {{
-			eventInterArrivalTime(constant(1000));
-			raise(NUMBER_OF_PEERS, Operations.peerFail, uniform(NUMBER_OF_BITS));
+			eventInterArrivalTime(constant(10000));
+			//raise(NUMBER_OF_PEERS/10, Operations.peerFail, uniform(NUMBER_OF_BITS));
+			raise(1, Operations.peerFail, uniform(NUMBER_OF_BITS));
 		}};
 
-		serverstart.start();
-		joining.startAfterTerminationOf(5000, serverstart);
-		/*
-		startOne.start();
-		joining.startAfterTerminationOf(8000, startOne);
-		*/
+		firstPeerStart.start();
+		joining.startAfterTerminationOf(5000, firstPeerStart);
+
 		subscribing.startAfterTerminationOf(500000, joining);
 		publishing.startAfterTerminationOf(80000, subscribing);
 		unsubscribing.startAfterTerminationOf(5000, publishing); 

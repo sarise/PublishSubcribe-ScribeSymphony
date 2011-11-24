@@ -80,8 +80,9 @@ public class Snapshot {
 
 //-------------------------------------------------------------------
 	public static void report() {
-		/*
+		///*
 		String str = new String();
+		
 		str += "current time: " + counter++ + "\n";
 		str += reportNetworkState();
 		str += reportDetailes();
@@ -91,7 +92,7 @@ public class Snapshot {
 		
 		FileIO.append(str, FILENAME);
 		generateGraphVizReport();
-		*/
+		//*/
 	}
 
 //-------------------------------------------------------------------
@@ -171,14 +172,14 @@ public class Snapshot {
 		for (int i = 0; i < peersList.length; i++) {
 			PeerInfo peer = peers.get(peersList[i]);
 			
-			if (peer.getLonglinksSize() < Peer.LONGLINK_SIZE)
-				count++;
+			count += (Peer.LONGLINK_SIZE - peer.getLonglinksSize());
+				
 		}
 		
 		if (count == 0)
 			str += "longlinks list is correct :)";
 		else
-			str += count + " peers have incomplete longlinks :(";
+			str += count + " longlink(s) in ring are missing :(";
 		
 		return str;
 	}
