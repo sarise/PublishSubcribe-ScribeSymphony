@@ -20,6 +20,17 @@ public class PeerInfo {
 	private HashMap<PeerAddress, Set<BigInteger>> receivedNotifications = new HashMap<PeerAddress, Set<BigInteger>>();
 	private HashMap<PeerAddress, BigInteger> startingNumbers = new HashMap<PeerAddress, BigInteger>();
 	private BigInteger myLastPublicationID = BigInteger.ZERO;
+	private Set<BigInteger> mySubscriptions = new HashSet<BigInteger>();
+	
+	// This metric will include the activity of publication into consideration
+	private int asSubscriberCount = 0;
+	private int asForwarderCount = 0;
+	
+	// This metric will only consider how good the structure of the overlay is without considering the activity
+	private Set<BigInteger> asSubscriberSet = new HashSet<BigInteger>();
+	private Set<BigInteger> asForwarderSet = new HashSet<BigInteger>(); 
+	// in asForwarderSet, we might include a peer which later on will be a subscriber.
+	// So, to get the pure set of forwarder, we have to substract it with asSubsriberSet
 
 //-------------------------------------------------------------------
 	public PeerInfo(PeerAddress self) {
@@ -123,13 +134,21 @@ public class PeerInfo {
 		return this.mySubscribers;
 	}
 
-	public void addNotification(PeerAddress publisher, BigInteger notificationID) {
+	public boolean addNotification(PeerAddress publisher, BigInteger notificationID) {
 		Set<BigInteger> notificationList = receivedNotifications.get(publisher);
 		
-		if (notificationList == null)
+		if (notificationList == null) {
 			notificationList = new HashSet<BigInteger>();
+			receivedNotifications.put(publisher, notificationList);
+		}
 		
+		if(notificationList.contains(notificationID))
+			return false;
+
 		notificationList.add(notificationID);
+		return true;
+		
+		//receivedNotifications.put(publisher, notificationList);
 	}
 	
 	public void setMyLastPublicationID(BigInteger id) {
@@ -139,20 +158,24 @@ public class PeerInfo {
 	public boolean isPublisher() {
 		return !this.myLastPublicationID.equals(BigInteger.ZERO);
 	}
-	
-	public boolean areNotificationsComplete(PeerAddress publisher, BigInteger lastPublicationID) {
+
+	public int areNotificationsComplete(PeerAddress publisher, BigInteger lastPublicationID) {
 		Set<BigInteger> notificationList = this.receivedNotifications.get(publisher);
 
 		if (notificationList == null)
-			return false;
-		
-		BigInteger bi = BigInteger.ONE; //startingNumbers.get(publisher);
+			return lastPublicationID.intValue();
+
+		int missingMessages = 0;
+			
+		BigInteger bi = BigInteger.ONE; // startingNumbers.get(publisher);
 		while (!(bi.compareTo(lastPublicationID) == 1)) {
 			if (!notificationList.contains(bi))
-				return false;
+				missingMessages++;
+			
 			bi = bi.add(BigInteger.ONE);
 		}
-		return true;
+		
+		return missingMessages;
 	}
 	
 	public BigInteger getLastPublicationID() {
@@ -163,5 +186,44 @@ public class PeerInfo {
 		this.startingNumbers.put(publisher, num);
 	}
 	
+	public void setSubscriptions(Set<BigInteger> set) {
+		this.mySubscriptions = set;
+	}
+	
+	public Set<BigInteger> getSubscriptions() {
+		return this.mySubscriptions;
+	}
 
+	public void incrementAsForwarderCount() {
+		this.asForwarderCount++;
+	}
+	
+	public void incrementAsSubscriberCount() {
+		this.asSubscriberCount++;
+	}
+
+	public void addAsSubscriberSet(BigInteger topicID) {
+		this.asSubscriberSet.add(topicID);
+	}
+	
+	public void addAsForwarderSet(BigInteger topicID) {
+		this.asForwarderSet.add(topicID);
+	}
+	
+	public int getAsForwarderSetSize() {
+		this.asForwarderSet.removeAll(this.asSubscriberSet);
+		return this.asForwarderSet.size();
+	}
+	
+	public int getAsSubscriberSetSize() {
+		return this.asSubscriberSet.size();
+	}
+	
+	public int getAsSubscriberCount() {
+		return this.asSubscriberCount;
+	}
+	
+	public int getAsForwarderCount() {
+		return this.asForwarderCount;
+	}
 }

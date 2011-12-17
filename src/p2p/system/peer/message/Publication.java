@@ -26,7 +26,7 @@ public class Publication extends Message{
 		super(source, destination);
 		this.topicID = topicID;
 		this.content = content;
-		this.sequenceNum = sequenceNum;
+		this.sequenceNum = seqNum;
 	}
 
 	public BigInteger getSequenceNum() {

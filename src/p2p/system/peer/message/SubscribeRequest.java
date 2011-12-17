@@ -17,11 +17,14 @@ public class SubscribeRequest extends Message {
 	private static final long serialVersionUID = 2876631073644631897L;
 	private final BigInteger topicID;
 	private final BigInteger lastSequenceNum;
+	
+	private final int numberOfHops;
 
-	public SubscribeRequest(BigInteger topicID, BigInteger lastSequenceNum, Address src, Address dest) {		
+	public SubscribeRequest(BigInteger topicID, BigInteger lastSequenceNum, Address src, Address dest, int numberOfHops) {		
 		super( src, dest);
 		this.topicID = topicID;
 		this.lastSequenceNum = lastSequenceNum;
+		this.numberOfHops = numberOfHops;
 	}
 
 	public BigInteger getTopic() {
@@ -31,6 +34,8 @@ public class SubscribeRequest extends Message {
 	public BigInteger getLastSequenceNum() {
 		return this.lastSequenceNum;
 	}
-
-
+	
+	public int getNumberOfHops() {
+		return this.numberOfHops;		
+	}
 }
