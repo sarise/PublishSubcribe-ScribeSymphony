@@ -879,6 +879,7 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 			if (subscriberlist == null) {
 				System.out.println("No entry in the forwarding table.");
 				sendUnsubscribeRequest(msg.getTopic());
+				Snapshot.cancelForwarder(msg.getTopic(), myPeerAddress);
 			} else {
 				// remove the incoming link from the forwarding table based in the topic ID
 				subscriberlist.remove(msg.getSource());
@@ -886,6 +887,7 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 					System.out.println("No more subscribers.");
 					myForwardingTable.remove(msg.getTopic());
 					sendUnsubscribeRequest(msg.getTopic());
+					Snapshot.cancelForwarder(msg.getTopic(), myPeerAddress);
 				} else {
 					//myForwardingTable.put(msg.getTopic(), subscriberlist);
 					System.out.println("Not forwarding the UnsubscribeRequest. subscriberlist: "
@@ -1257,6 +1259,7 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 				// otherwise, the relay path will be broken.
 				if (!myForwardingTable.containsKey(topicID)) {
 					sendUnsubscribeRequest(topicID);
+					Snapshot.cancelSubscriber(topicID, myPeerAddress);
 				}
 			}
 		}

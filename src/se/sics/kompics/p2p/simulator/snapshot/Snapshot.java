@@ -41,9 +41,11 @@ public class Snapshot {
 											"#[1] \t[2] \t[3] \t[4] \t[5] \t[6] \t[7] \t[8] \t[9] \t[10] \t[11] \t[12]\n";
 	private static HashMap<BigInteger, Integer> subscribeOverhead = new HashMap<BigInteger, Integer>();
 	private static HashMap<BigInteger, Integer> unsubscribeOverhead = new HashMap<BigInteger, Integer>();
-	private static HashMap<BigInteger, Vector<Integer>> multicastTree = new HashMap<BigInteger, Vector<Integer>>();
+	private static HashMap<BigInteger, Vector<Integer>> multicastTreeDepths = new HashMap<BigInteger, Vector<Integer>>();
 	private static int writetograph = 0;
-	private static final int TICK = 10;
+	private static int writetofile = 0;
+	private static final int TICK = 1;
+	
 	private static final Random rand = new Random();
 	private static final DecimalFormat df4 = new DecimalFormat("#.0000");
 	private static final DecimalFormat df2 = new DecimalFormat("#.00");
@@ -119,7 +121,7 @@ public class Snapshot {
 		
 		System.out.println(str);
 		
-		FileIO.append(str, FILENAME);
+		//FileIO.append(str, FILENAME);
 		if(writetograph == TICK){
 		generateGraphVizReport();
 		writetograph = 0;
@@ -170,8 +172,12 @@ public class Snapshot {
 						df0.format(forwardingOverhead.get(1)) + "\t" +
 						df4.format(forwardingOverhead.get(2))  + "\n";
 						
-		
+		if(writetofile == TICK){
 		FileIO.append(trace, TRACESOUT);
+		writetofile = 0;
+		}
+		
+		writetofile++;
 		return str;
 	}
 
@@ -470,6 +476,15 @@ public class Snapshot {
 
 		peerInfo.addAsForwarderSet(topicID);
 	}
+	
+	public static void cancelForwarder(BigInteger topicID, PeerAddress forwarder) {
+		PeerInfo peerInfo = peers.get(forwarder);
+
+		if (peerInfo == null)
+			return;
+
+		peerInfo.removeFromAsForwarderSet(topicID);
+	}
 
 	// Peer is participating as subscriber for a topic in the relay path - Structure related
 
@@ -481,6 +496,16 @@ public class Snapshot {
 		
 		peerInfo.addAsSubscriberSet(topicID);
 	}
+	
+	public static void cancelSubscriber(BigInteger topicID, PeerAddress subscriber) {
+		PeerInfo peerInfo = peers.get(subscriber);
+
+		if (peerInfo == null)
+			return;
+		
+		peerInfo.removeFromAsSubscriberSet(topicID);
+	}
+	
 	
 	// should it be synchronized?
 	public static void addToSubscribeTree(BigInteger topicID) {
@@ -541,7 +566,7 @@ public class Snapshot {
 	
 	// Max Length of multicast tree of each topic - called from rendezvous peer only
 	public static void addDepthToMulticastTree(BigInteger topicId, int length){
-		Vector<Integer> depths = multicastTree.get(topicId);
+		Vector<Integer> depths = multicastTreeDepths.get(topicId);
 		
 		if (depths != null){
 			depths.add(length);	
@@ -550,11 +575,11 @@ public class Snapshot {
 			depths = new Vector<Integer>();
 			depths.add(length);
 		}
-		multicastTree.put(topicId, depths);
+		multicastTreeDepths.put(topicId, depths);
 	}
 	
 	public static Vector<Double> computeDepth(){
-		Collection<Vector<Integer>> values = multicastTree.values();
+		Collection<Vector<Integer>> values = multicastTreeDepths.values();
 		Iterator<Vector<Integer>> iter = values.iterator();
 		
 		Vector<Double> avgDepths = new  Vector<Double>();
@@ -569,7 +594,7 @@ public class Snapshot {
 			avgSystemDepth += avgDepth;
 		}
 		
-		avgSystemDepth /= multicastTree.size();
+		avgSystemDepth /= multicastTreeDepths.size();
 		avgDepths.add(0, avgSystemDepth);
 		return avgDepths;
 	}

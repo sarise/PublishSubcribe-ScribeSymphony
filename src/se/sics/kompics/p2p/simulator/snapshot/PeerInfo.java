@@ -206,8 +206,16 @@ public class PeerInfo {
 		this.asSubscriberSet.add(topicID);
 	}
 	
+	public void removeFromAsSubscriberSet(BigInteger topicID) {
+		this.asSubscriberSet.remove(topicID);
+	}
+	
 	public void addAsForwarderSet(BigInteger topicID) {
 		this.asForwarderSet.add(topicID);
+	}
+	
+	public void removeFromAsForwarderSet(BigInteger topicID) {
+		this.asForwarderSet.remove(topicID);
 	}
 	
 	public int getAsForwarderSetSize() {
