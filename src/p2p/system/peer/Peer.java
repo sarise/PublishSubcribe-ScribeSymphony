@@ -1087,6 +1087,7 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 		// System.out.println("oldDistance:" + oldDistance);
 
 		if (address != null) {
+			/*
 			if (myPeerAddress.getPeerId().equals(BigInteger.ZERO)) 
 				System.err.println("Peer " + myPeerAddress.getPeerId()
 						+ " routed a message on id " + nextPeer + " " + address);
@@ -1094,6 +1095,7 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 			else 
 				System.out.println("Peer " + myPeerAddress.getPeerId()
 						+ " routed a message on id " + nextPeer + " " + address);
+						*/
 			
 			msg.setDestination(address);
 			trigger(msg, network);
