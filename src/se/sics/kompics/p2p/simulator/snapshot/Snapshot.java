@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
 
+import p2p.simulator.scenarios.Scenario1;
 import p2p.system.peer.Peer;
 import p2p.system.peer.PeerAddress;
 
@@ -22,8 +23,10 @@ public class Snapshot {
 	private static Vector<PeerAddress> removedPeers = new Vector<PeerAddress>();
 	private static String FILENAME = "peer.out";
 	private static String DOTFILENAME = "peer.dot";
-	private static String TRACESOUT = "result.txt";
-	private static String TRACE_HEADER = "#1. counter\n" + 
+	private static String TRACESOUT = DateUtils.now() + "_" + Scenario1.NUMBER_OF_PEERS +  ".txt";
+	private static String TRACE_HEADER = "#Settings: \n# Peers: "+Scenario1.NUMBER_OF_PEERS+" #Subscriptions: "+Scenario1.NUMBER_OF_SUBCRIPTIONS+" #Publications: "+Scenario1.NUMBER_OF_PUBLICATIONS
+	+" #UnSubscriptions: "+Scenario1.NUMBER_OF_UNSUBSCRIPTIONS+" Subscription model: "+Scenario1.subscriptionsModel+ "\n"+
+											"#1. counter\n" + 
 											"#2. Unsubscribe request messages\n" + 
 											"#3. Subscribe request messages\n" +
 											"#4. * CONTROL MESSAGES\n" +
