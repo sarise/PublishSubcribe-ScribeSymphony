@@ -1,19 +1,19 @@
 package se.sics.kompics.p2p.simulator.snapshot;
 
 import java.math.BigInteger;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
 
 import p2p.system.peer.Peer;
 import p2p.system.peer.PeerAddress;
-
-
 
 public class Snapshot {
 	private static int counter = 0;
@@ -22,14 +22,33 @@ public class Snapshot {
 	private static Vector<PeerAddress> removedPeers = new Vector<PeerAddress>();
 	private static String FILENAME = "peer.out";
 	private static String DOTFILENAME = "peer.dot";
+	private static String TRACESOUT = "result.txt";
+	private static String TRACE_HEADER = "#1. counter\n" + 
+											"#2. Unsubscribe request messages\n" + 
+											"#3. Subscribe request messages\n" +
+											"#4. * CONTROL MESSAGES\n" +
+											"#5. * DEPTH OF TREE\n" +
+											"#6. * HIT RATIO\n" +
+											"#7. Forwarder nodes\n" +
+											"#8. Subscriber nodes\n" +
+											"#9. * RELAY NODE RATIO\n" +
+											"#10. Forwarding action\n" +
+											"#11. Subscribing action\n" +
+											"#12. * FORWARDING OVERHEAD\n\n" +
+											"#[1] \t[2] \t[3] \t[4] \t[5] \t[6] \t[7] \t[8] \t[9] \t[10] \t[11] \t[12]\n";
 	private static HashMap<BigInteger, Integer> subscribeOverhead = new HashMap<BigInteger, Integer>();
 	private static HashMap<BigInteger, Integer> unsubscribeOverhead = new HashMap<BigInteger, Integer>();
 	private static HashMap<BigInteger, Vector<Integer>> multicastTree = new HashMap<BigInteger, Vector<Integer>>();
 	private static int writetograph = 0;
 	private static final int TICK = 10;
+	private static final Random rand = new Random();
+	private static final DecimalFormat df4 = new DecimalFormat("#.0000");
+	private static final DecimalFormat df2 = new DecimalFormat("#.00");
+	private static final DecimalFormat df0 = new DecimalFormat("#");
 	static {
 		FileIO.write("", FILENAME);
 		FileIO.write("", DOTFILENAME);
+		FileIO.write(TRACE_HEADER, TRACESOUT);
 	}
 
 //-------------------------------------------------------------------
@@ -123,17 +142,33 @@ public class Snapshot {
 		//str += "succList: " + verifySuccList(peersList) + "\n";
 		//str += details(peersList);
 		
+		int unsub = computeUnsubscribeOverhead();
+		int sub = computeSubscribeOverhead();
+		Vector<Double> depths = computeDepth();
+		double hitratio = verifyNotifications(peersList);
+		Vector<Double> relaynode = computeRelayNodeRatio(peersList);
+		Vector<Double> forwardingOverhead = computeForwardingOverhead(peersList);
+		str += "1. control message. T: " + (unsub + sub) + " U: " + unsub + " S: " + sub + "\n";
+		str += "2. average multicast tree depth. " + depths + "\n";
+		str += "3. hit ratio. notifications: " + hitratio + "\n";
+		str += "4. relay node ratio: \t" + relaynode + "\n";
+		str += "5. forwarding overhead:\t" + forwardingOverhead	+ "\n";
 		
-		str += "forwarding overhead:\t" + computeForwardingOverhead(peersList)	+ "\n";
-		str += "relay node ratio: \t" + computeRelayNodeRatio(peersList) + "\n";
+		String trace = counter + "\t" + 
+						unsub + "\t" + 
+						sub + "\t" +
+						(unsub + sub) + "\t" +
+						df4.format(depths.get(0)) + "\t" +
+						df2.format(hitratio) + "\t" +
+						df0.format(relaynode.get(0)) + "\t" +
+						df0.format(relaynode.get(1)) + "\t" +
+						df4.format(relaynode.get(2))  + "\t" +
+						df0.format(forwardingOverhead.get(0)) + "\t" +
+						df0.format(forwardingOverhead.get(1)) + "\t" +
+						df4.format(forwardingOverhead.get(2))  + "\n";
+						
 		
-		str += "notifications: " + verifyNotifications(peersList) + "\n";
-		str += "avg multicast tree depth: " + computeDepth() + "\n";
-		str += "unSubscribe requests: " + computeUnsubscribeOverhead() + "\n";
-		str += "Subscribe requests: " + computeSubscribeOverhead() + "\n";
-		
-		
-
+		FileIO.append(trace, TRACESOUT);
 		return str;
 	}
 
@@ -390,19 +425,22 @@ public class Snapshot {
 		PeerInfo peerInfo2 = peers.get(subscriber);
 		peerInfo2.setStartingNumber(peers2.get(topicID), lastSequenceNum);
 	}
-	
-	public static void removeSubscription(BigInteger topicID, PeerAddress subscriber) {
+
+	// Decrement my subscribers
+	public static void removeSubscription(BigInteger topicID,
+			PeerAddress subscriber) {
 		PeerInfo peerInfo = peers.get(peers2.get(topicID));
-		
+
 		if (peerInfo == null)
 			return;
-		
+
 		peerInfo.removeSubscriber(subscriber);
 	}
-	
+
+	// Peer has received notification as subscriber - Traffic overhead related
 	public static void receiveNotification(BigInteger topicID, PeerAddress subscriber, BigInteger notificationID) {
 		PeerInfo peerInfo = peers.get(subscriber);
-		
+
 		if (peerInfo == null)
 			return;
 
@@ -462,32 +500,40 @@ public class Snapshot {
 		unsubscribeOverhead.put(topicID, count);
 	}
 	
-	public static String computeUnsubscribeOverhead() {
+	public static int computeUnsubscribeOverhead() {
 		
 		Collection<Integer> set = unsubscribeOverhead.values();
 	
-		Iterator<Integer> itr =set.iterator();
+		int count = sum(set);
+		
+		return count;//+" " +set.toString();
+	}
+	
+	private static int sum(Collection<Integer> set) {
 		int count = 0;
+		
+		Iterator<Integer> itr =set.iterator();
 		while(itr.hasNext())
 		{
 			count += itr.next();	
 		}
 		
-		return count+" " +set.toString();
+		return count;
 	}
 	
-	public static String computeSubscribeOverhead() {
+	private static double average(Collection<Integer> set) {
+		double sum = sum(set);
+		
+		return sum / set.size();
+	}
+	
+	public static int computeSubscribeOverhead() {
 		
 		Collection<Integer> set = subscribeOverhead.values();
 	
-		Iterator<Integer> itr =set.iterator();
-		int count = 0;
-		while(itr.hasNext())
-		{
-			count += itr.next();	
-		}
+		int count = sum(set);
 		
-		return count+" " +set.toString();
+		return count; //+" " +set.toString();
 	}
 	
 	// Max Length of multicast tree of each topic - called from rendezvous peer only
@@ -505,45 +551,38 @@ public class Snapshot {
 	}
 	
 	public static Vector<Double> computeDepth(){
-		Set<BigInteger> keys = multicastTree.keySet();
-		Vector<Integer> depths = new Vector<Integer>();
-		Iterator<BigInteger> itr = keys.iterator();
-		double avgTopicDepth =0;
+		Collection<Vector<Integer>> values = multicastTree.values();
+		Iterator<Vector<Integer>> iter = values.iterator();
+		
+		Vector<Double> avgDepths = new  Vector<Double>();
+		
 		double avgSystemDepth = 0;
-		Vector<Double> arr = new  Vector<Double>();
-		
-		while(itr.hasNext()){
-			BigInteger topic = itr.next();
-			depths = multicastTree.get(topic);
-			Iterator<Integer> it = depths.iterator();
-			while(it.hasNext()){
-				avgTopicDepth += it.next();
-			}
-			avgTopicDepth/=depths.size();
-			avgSystemDepth += avgTopicDepth;
-			arr.add(avgTopicDepth);
+		double avgDepth;
+		while(iter.hasNext()) {
+			Vector<Integer> depths = iter.next();
+			avgDepth = average(depths);
+			avgDepths.add(avgDepth);
+			
+			avgSystemDepth += avgDepth;
 		}
-		if(keys.size()>0)
-		avgSystemDepth/=keys.size();
 		
-		arr.add(0, avgSystemDepth);
-		return arr;
-		//return avgSystemDepth;
-		
+		avgSystemDepth /= multicastTree.size();
+		avgDepths.add(0, avgSystemDepth);
+		return avgDepths;
 	}
 		
 	// Publisher sets the last sequence no. that it published
 	public static void publish(PeerAddress publisher, BigInteger publicationID) {
 		PeerInfo peerInfo = peers.get(publisher);
-		
+
 		if (peerInfo == null)
 			return;
-		
+
 		peerInfo.setMyLastPublicationID(publicationID);
 	}
-	
-	private static String verifyNotifications(PeerAddress[] peersList) {
-		String str = "";
+
+	// Calculate hit ratio for notifications
+	private static double verifyNotifications(PeerAddress[] peersList) {
 		int wrongs[] = new int[peersList.length];
 		
 		int totalMissingNotifications = 0;
@@ -577,7 +616,7 @@ public class Snapshot {
 		
 		double hitratio = 1 - (((double) totalMissingNotifications) / totalNotifications);
 
-		return hitratio + " T:" + totalNotifications + " M:" + totalMissingNotifications;
+		return hitratio; // + " T:" + totalNotifications + " M:" + totalMissingNotifications;
 
 	}
 	
@@ -611,17 +650,17 @@ public class Snapshot {
 		return count;
 	}
 
-	public static String computeForwardingOverhead(PeerAddress[] peersList) {
-		int F = computeTotalForwardersCount(peersList);
-		int S = computeTotalSubscribersCount(peersList);
+	public static Vector<Double> computeForwardingOverhead(PeerAddress[] peersList) {
+		double F = computeTotalForwardersCount(peersList);
+		double S = computeTotalSubscribersCount(peersList);
+		double ratio = F / S;
 		
-		double result = F / ((double) F + S);
+		Vector<Double> result = new Vector<Double>();
+		result.add(F);
+		result.add(S);
+		result.add(ratio);
 		
-		String str = " F:" + F
-			+ " S:" + S
-			+ " Overhead: " + result;
-		
-		return str;
+		return result;
 	}
 
 	public static int computeTotalForwardersSet(PeerAddress[] peersList) {
@@ -654,16 +693,22 @@ public class Snapshot {
 		return count;
 	}
 	
-	public static String computeRelayNodeRatio(PeerAddress[] peersList) {
-		int F = computeTotalForwardersSet(peersList);
-		int S = computeTotalSubscribersSet(peersList);
-		double result =  F / ((double) F + S);
+	/**
+	 * 
+	 * @param peersList
+	 * @return Vector Double of size 3: Forwarders, Subscribers, Ratio
+	 */
+	public static Vector<Double> computeRelayNodeRatio(PeerAddress[] peersList) {
+		Vector<Double> result = new Vector<Double>();
+		double F = computeTotalForwardersSet(peersList);
+		double S = computeTotalSubscribersSet(peersList);
+		double overhead =  F / S;
 		
-		String str = " F:" + F
-							+ " S:" + S
-							+ " Overhead: " + result;
-		
-		return str;
+		result.add(F);
+		result.add(S);
+		result.add(overhead);
+				
+		return result;
 							
 	}
 	
