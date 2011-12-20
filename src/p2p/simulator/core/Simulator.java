@@ -59,7 +59,7 @@ import se.sics.kompics.timer.Timer;
 public final class Simulator extends ComponentDefinition {
 
 	private final String TWITTER_DATASET_FILENAME = "config/graph.sub";
-	private final int DATASET_LENGTH = 100;
+	private final int DATASET_LENGTH = Scenario1.NUMBER_OF_PEERS;
 	
 	Positive<SimulatorPort> simulator = positive(SimulatorPort.class);
 	Positive<Network> network = positive(Network.class);
@@ -228,7 +228,8 @@ public final class Simulator extends ComponentDefinition {
 			
 			Properties configFile = new Properties();
 			try {
-				configFile.load(this.getClass().getClassLoader().getResourceAsStream("simulation.properties"));
+				//configFile.load(this.getClass().getClassLoader().getResourceAsStream("simulation.properties"));
+				configFile.load(new FileInputStream("config/simulation.properties"));
 			} catch (Exception e) {
 				System.err.println("Error: couldn't load the properties file in Scenario1.java");
 			}

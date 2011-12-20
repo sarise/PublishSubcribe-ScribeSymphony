@@ -90,9 +90,11 @@ public class Scenario1 extends Scenario {
 		}
 		else if (subscriptionsModel.equals("twitter")) { 
 			// Subscription
+			System.out.println("Subscribing");
 			subscribing = new StochasticProcess() {{
 				eventInterArrivalTime(constant(100));
 				raise(1, Operations.allPeerSubscribe_T);
+				System.out.println("Subscribing done");
 			}};
 		}
 		

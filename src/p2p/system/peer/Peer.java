@@ -1205,9 +1205,11 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 			Iterator it = topicIDs.iterator();
 			while (it.hasNext()) {
 				BigInteger topicID = (BigInteger) it.next();
+				mySubscriptions.put(topicID, BigInteger.ZERO);
 				sendSubscribeRequest(topicID, BigInteger.ZERO);
 
 			}
+			Snapshot.setPeerSubscriptions(myPeerAddress, mySubscriptions.keySet());
 
 		}
 	};
