@@ -468,6 +468,9 @@ public final class Simulator extends ComponentDefinition {
 		// handle the leftover: spread them to the first few blocks
 		int count = 0;
 		while (it.hasNext()) {
+			if(count==numOfBlocks)
+				count = 0;
+			
 			Map.Entry entry = (Map.Entry) it.next();
 			BigInteger topicID = (BigInteger) entry.getKey();
 			
