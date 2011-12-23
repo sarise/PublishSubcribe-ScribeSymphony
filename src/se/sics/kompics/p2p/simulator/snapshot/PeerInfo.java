@@ -25,6 +25,7 @@ public class PeerInfo {
 	// This metric will include the activity of publication into consideration
 	private int asSubscriberCount = 0;
 	private int asForwarderCount = 0;
+	private int tableSize = 0;
 	
 	// This metric will only consider how good the structure of the overlay is without considering the activity
 	private Set<BigInteger> asSubscriberSet = new HashSet<BigInteger>();
@@ -218,6 +219,10 @@ public class PeerInfo {
 		this.asForwarderSet.remove(topicID);
 	}
 	
+	public void setForwardingTableSize(int size) {
+		this.tableSize = size;
+	}
+	
 	public int getAsForwarderSetSize() {
 		this.asForwarderSet.removeAll(this.asSubscriberSet);
 		return this.asForwarderSet.size();
@@ -233,5 +238,9 @@ public class PeerInfo {
 	
 	public int getAsForwarderCount() {
 		return this.asForwarderCount;
+	}
+	
+	public int getForwardingTableSize() {
+		return this.tableSize;
 	}
 }

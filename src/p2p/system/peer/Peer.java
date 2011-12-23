@@ -823,9 +823,9 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 	private void forwardNotification(Notification msg) {
 		// Forward the corresponding notification based on the forwardingTable
 		Set<Address> subscriberlist = myForwardingTable.get(msg.getTopic());
-
+		
 		if (subscriberlist == null) {
-			System.out.println("No subscriber in the forwarding table");
+			//System.out.println("No subscriber in the forwarding table");
 			return;
 		}
 
@@ -852,11 +852,10 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 				//		+ msg.getTopic());
 				Snapshot.receiveNotification(msg.getTopic(), myPeerAddress, msg.getSequenceNum());
 			} else {
-				System.out
-						.println("Peer "
-								+ myPeerAddress.getPeerId()
-								+ ", as a forwarder only, received a notification about "
-								+ msg.getTopic());
+				//System.out.println("Peer "
+					//			+ myPeerAddress.getPeerId()
+						//		+ ", as a forwarder only, received a notification about "
+							//	+ msg.getTopic());
 				Snapshot.forwardNotification(msg.getTopic(), myPeerAddress, msg.getSequenceNum());
 			}
 
@@ -924,6 +923,14 @@ private void resubscribe(Set<BigInteger> topicIDs, PeerAddress oldLink) {
 			// System.out.println("id: " + myPeerAddress.getPeerId() +
 			// " destination: " + hashedTopicID + " topicID: " +
 			// msg.getTopic());
+			int size =0;
+			Set<BigInteger> set = myForwardingTable.keySet();
+			Iterator<BigInteger> it = set.iterator();
+			while(it.hasNext())
+				size+=myForwardingTable.get(it.next()).size();
+			Snapshot.writeForwardingTableSize(myPeerAddress, size);
+			
+			
 
 			routeMessage(newMsg, hashedTopicID);
 			
